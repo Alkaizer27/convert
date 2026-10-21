@@ -37,8 +37,12 @@ As chaves ficam salvas só neste navegador, neste computador (`chrome.storage.lo
 - `lib/providers.js`: chama a API do Claude (com pesquisa na web e citações) ou do Gemini (com Google Search).
 - `sidepanel.*`: interface do painel. `options.*`: configurações.
 
-## Publicar depois na Chrome Web Store (privada)
+## Publicar na Chrome Web Store (privada)
 
-Compacte a pasta `extension/` em .zip e envie pelo
-[Developer Dashboard](https://chrome.google.com/webstore/devconsole) com visibilidade **Privada**
-e seu Gmail na lista de testadores. Assim ela sincroniza em qualquer Chrome em que você entrar.
+Passo a passo completo em [`docs/PUBLICACAO.md`](docs/PUBLICACAO.md). Textos da loja e imagens em
+[`store/`](store/), política de privacidade em [`docs/privacidade.html`](docs/privacidade.html) e pacote
+gerado por `./scripts/package.sh`.
+
+## Testes
+
+`node tests/smoke.mjs` carrega a extensão num Chromium e confere a leitura da página e as chamadas às APIs (simuladas).

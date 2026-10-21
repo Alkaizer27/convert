@@ -145,12 +145,22 @@ export async function askGemini({ settings, page, question, signal }) {
   };
   if (settings.webSearch) body.tools = [{ google_search: {} }];
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "content-type": "application/json", "x-goog-api-key": settings.geminiKey },
-    body: JSON.stringify(body),
-    signal,
-  });
+  const post = (u) =>
+    fetch(u, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-goog-api-key": settings.geminiKey },
+      body: JSON.stringify(body),
+      signal,
+    });
+  let res = await post(url);
+  if (res.status === 404) {
+    // Nome de modelo desatualizado: escolhe o Flash mais novo disponível e lembra dele.
+    const model = await pickGeminiModel(settings.geminiKey, signal);
+    if (model) {
+      await chrome.storage.local.set({ geminiModel: model });
+      res = await post(url.replace(`/models/${encodeURIComponent(settings.geminiModel)}:`, `/models/${encodeURIComponent(model)}:`));
+    }
+  }
   if (!res.ok) throw new Error(await readError(res));
   const data = await res.json();
 
@@ -168,6 +178,31 @@ export async function askGemini({ settings, page, question, signal }) {
   return { text, sources: dedupeSources(sources).slice(0, 8) };
 }
 
+// Lista os modelos da conta e devolve o Flash (não Lite) de versão mais alta.
+export async function pickGeminiModel(key, signal) {
+  const res = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200", {
+    headers: { "x-goog-api-key": key },
+    signal,
+  });
+  if (!res.ok) return null;
+  const { models = [] } = await res.json();
+  const candidates = models
+    .filter((m) => (m.supportedGenerationMethods || []).includes("generateContent"))
+    .map((m) => m.name.replace(/^models\//, ""))
+    .filter((id) => /^gemini-[\d.]+-flash$/.test(id));
+  const version = (id) => parseFloat(id.match(/^gemini-([\d.]+)/)[1]);
+  candidates.sort((a, b) => version(b) - version(a));
+  return candidates[0] || null;
+}
+
 export function ask(opts) {
   return opts.settings.provider === "gemini" ? askGemini(opts) : askClaude(opts);
+}
+
+// Chamada mínima para conferir chave e modelo pela tela de configurações.
+export async function testConnection(provider, settings) {
+  const page = { title: "Teste", url: "", selection: "", text: "Quanto é 2 + 2?", truncated: false, image: null };
+  const quick = { ...settings, webSearch: false, claudeEffort: "low" };
+  const { text } = provider === "gemini" ? await askGemini({ settings: quick, page }) : await askClaude({ settings: quick, page });
+  return text.trim().slice(0, 120);
 }

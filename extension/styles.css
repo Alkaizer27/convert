@@ -147,3 +147,6 @@ main { flex: 1; padding: 12px; }
 .options small { color: var(--muted); display: block; margin-top: 4px; }
 .options a { color: var(--accent); }
 .saved { color: var(--answer-border); margin-left: 8px; }
+.test-result { font-size: 12px; margin-left: 6px; }
+.test-result.ok { color: var(--answer-border); }
+.test-result.fail { color: var(--error-fg); }
