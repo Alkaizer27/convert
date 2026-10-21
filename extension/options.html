@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Resolve Aí — Configurações</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <form id="form" class="options">
+    <h1>Resolve Aí — Configurações</h1>
+    <p><small>As chaves ficam guardadas só neste navegador, neste computador. Em outro computador, cole as chaves de novo.</small></p>
+
+    <fieldset>
+      <legend>IA padrão</legend>
+      <select id="provider">
+        <option value="claude">Claude (Anthropic)</option>
+        <option value="gemini">Gemini (Google)</option>
+      </select>
+    </fieldset>
+
+    <fieldset>
+      <legend>Claude</legend>
+      <label for="claudeKey">Chave de API</label>
+      <input id="claudeKey" type="password" autocomplete="off" placeholder="sk-ant-...">
+      <small>Crie em <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>. A assinatura do Claude.ai (Pro/Max) não inclui a API: ela é cobrada à parte, por uso.</small>
+
+      <label for="claudeModel">Modelo</label>
+      <select id="claudeModel">
+        <option value="claude-opus-5-5">Claude Opus 5.5 (mais preciso)</option>
+        <option value="claude-sonnet-5-5">Claude Sonnet 5.5 (equilibrado)</option>
+        <option value="claude-haiku-5-5">Claude Haiku 5.5 (mais rápido e barato)</option>
+      </select>
+
+      <label for="claudeEffort">Esforço de raciocínio</label>
+      <select id="claudeEffort">
+        <option value="low">Baixo (mais rápido)</option>
+        <option value="medium">Médio</option>
+        <option value="high">Alto (mais lento, para questões difíceis)</option>
+      </select>
+    </fieldset>
+
+    <fieldset>
+      <legend>Gemini</legend>
+      <label for="geminiKey">Chave de API</label>
+      <input id="geminiKey" type="password" autocomplete="off" placeholder="AIza...">
+      <small>Crie grátis em <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com</a> (tem cota gratuita).</small>
+
+      <label for="geminiModel">Modelo</label>
+      <input id="geminiModel" type="text" spellcheck="false">
+      <small>Padrão: gemini-3.5-flash. Se o Google trocar o nome, altere aqui.</small>
+    </fieldset>
+
+    <fieldset>
+      <legend>Comportamento</legend>
+      <label class="check"><input id="autoRun" type="checkbox"> Responder automaticamente ao abrir o painel</label>
+      <label class="check"><input id="sendScreenshot" type="checkbox"> Enviar captura da tela visível (ajuda com imagens, gráficos e fórmulas)</label>
+      <label class="check"><input id="webSearch" type="checkbox"> Pesquisar na internet e mostrar fontes</label>
+    </fieldset>
+
+    <button type="submit" class="primary">Salvar</button>
+    <span id="saved" class="saved" hidden>Salvo ✓</span>
+  </form>
+  <script type="module" src="options.js"></script>
+</body>
+</html>

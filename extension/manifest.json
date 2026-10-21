@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "Resolve Aí — Assistente de Estudos",
+  "short_name": "Resolve Aí",
+  "version": "0.1.0",
+  "description": "Painel lateral que lê a questão da página e explica a resposta com IA (Claude ou Gemini), com fontes.",
+  "minimum_chrome_version": "116",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_title": "Resolve Aí — abrir painel"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "options_page": "options.html",
+  "permissions": ["sidePanel", "scripting", "storage", "activeTab"],
+  "host_permissions": ["<all_urls>"],
+  "commands": {
+    "_execute_action": {
+      "suggested_key": { "default": "Alt+Shift+R" },
+      "description": "Abrir o painel do Resolve Aí"
+    }
+  }
+}

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Resolve Aí</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="bar">
+    <strong class="brand">Resolve Aí</strong>
+    <select id="provider" title="Qual IA usar">
+      <option value="claude">Claude</option>
+      <option value="gemini">Gemini</option>
+    </select>
+    <button id="settings" class="icon" title="Configurações">⚙</button>
+  </header>
+
+  <main>
+    <button id="solve" class="primary">Responder questão da tela</button>
+    <p class="hint">Dica: selecione o texto de uma questão específica antes de clicar.</p>
+
+    <div id="status" class="status" hidden></div>
+    <div id="error" class="error" hidden></div>
+    <article id="result" class="result" hidden></article>
+  </main>
+
+  <footer class="ask">
+    <textarea id="question" rows="2" placeholder="Tem outra dúvida sobre esta página? Pergunte aqui…"></textarea>
+    <button id="send" class="secondary" title="Enviar (Ctrl+Enter)">Perguntar</button>
+  </footer>
+
+  <script type="module" src="sidepanel.js"></script>
+</body>
+</html>
