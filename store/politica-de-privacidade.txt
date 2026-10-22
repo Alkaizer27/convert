@@ -1,0 +1,21 @@
+Resolve Aí — Política de Privacidade
+Última atualização: 22 de outubro de 2026.
+
+O Resolve Aí é uma extensão do Chrome para estudo. Ela lê a questão que está na tela e pede a uma inteligência artificial (Claude, da Anthropic, ou Gemini, do Google) a resposta com explicação e fontes.
+
+Quais dados a extensão usa
+• Conteúdo da página aberta: o texto da página, o texto selecionado e uma captura da parte visível da tela. Esses dados só são lidos quando o usuário abre o painel ou clica em "Responder".
+• Perguntas do usuário: o que é digitado na caixa de perguntas do painel.
+• Configurações e chaves de API: ficam salvas apenas no navegador do usuário e não são enviadas a terceiros, exceto a chave enviada ao próprio provedor de IA para autenticar a solicitação.
+
+Para onde os dados vão
+O conteúdo acima é enviado diretamente do navegador para o provedor de IA escolhido pelo usuário:
+• Anthropic (api.anthropic.com) — https://www.anthropic.com/legal/privacy
+• Google (generativelanguage.googleapis.com) — https://policies.google.com/privacy
+A extensão não tem servidor próprio, não coleta estatísticas de uso, não vende nem compartilha dados e não usa os dados para nenhuma finalidade além de responder à solicitação do usuário.
+
+Como apagar seus dados
+Remova a extensão em chrome://extensions. Isso apaga as configurações e as chaves salvas.
+
+Contato
+SEU-EMAIL-DE-CONTATO

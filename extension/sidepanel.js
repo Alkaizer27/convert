@@ -87,18 +87,21 @@ els.provider.addEventListener("change", async () => {
 
 els.settings.addEventListener("click", () => chrome.runtime.openOptionsPage());
 
+const hasKey = () => (settings.provider === "gemini" ? settings.geminiKey : settings.claudeKey);
+const MISSING_KEY = 'Configure sua chave de API para começar: clique em <strong>⚙</strong> no canto superior.';
+
+// Atualiza o aviso de chave ao salvar as configurações ou trocar de IA.
+function refreshKeyWarning() {
+  if (!hasKey()) show(els.error, MISSING_KEY);
+  else if (els.error.innerHTML === MISSING_KEY) show(els.error, "");
+}
+
 chrome.storage.onChanged.addListener(async (_changes, area) => {
   if (area !== "local") return;
   settings = await loadSettings();
   els.provider.value = settings.provider;
+  refreshKeyWarning();
 });
 
-const hasKey = settings.provider === "gemini" ? settings.geminiKey : settings.claudeKey;
-if (!hasKey) {
-  show(
-    els.error,
-    'Configure sua chave de API para começar: clique em <strong>⚙</strong> no canto superior.'
-  );
-} else if (settings.autoRun) {
-  run("");
-}
+refreshKeyWarning();
+if (hasKey() && settings.autoRun) run("");

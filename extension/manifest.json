@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Resolve Aí — Assistente de Estudos",
   "short_name": "Resolve Aí",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Painel lateral que lê a questão da página e explica a resposta com IA (Claude ou Gemini), com fontes.",
   "minimum_chrome_version": "116",
   "icons": {

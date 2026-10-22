@@ -6,7 +6,7 @@ Os passos marcados com 👤 dependem de você (login, pagamento, aprovação). T
 
 1. 👤 **Criar a chave do Gemini (grátis):** entre em https://aistudio.google.com/app/apikey com seu Gmail e clique em *Create API key*. Copie a chave (começa com `AIza`).
 2. 👤 *(Opcional)* **Criar a chave do Claude:** em https://console.anthropic.com/settings/keys. A assinatura do Claude.ai não vale aqui: é preciso adicionar créditos em *Billing*.
-3. **Instalar a extensão:** descompacte `resolve-ai-0.1.1.zip` numa pasta fixa e abra `chrome://extensions`. Ative o **Modo do desenvolvedor** e clique em **Carregar sem compactação**, escolhendo a pasta.
+3. **Instalar a extensão:** descompacte `resolve-ai-0.1.2.zip` numa pasta fixa e abra `chrome://extensions`. Ative o **Modo do desenvolvedor** e clique em **Carregar sem compactação**, escolhendo a pasta.
 4. Clique no ícone da extensão e depois em **⚙**. Cole a chave e clique em **Testar Gemini**. Deve aparecer "Funcionou ✓".
    - Se o nome do modelo do Gemini estiver desatualizado, a extensão encontra sozinha o modelo Flash mais novo e salva.
    - Se o modelo estiver sobrecarregado (erro 503), ela tenta outro modelo Flash automaticamente.
@@ -19,10 +19,9 @@ Os passos marcados com 👤 dependem de você (login, pagamento, aprovação). T
 2. 👤 **Criar a conta de desenvolvedor:** em https://chrome.google.com/webstore/devconsole, pague a taxa única de US$ 5 e aceite o contrato.
 3. **Gerar o pacote:** rode `./scripts/package.sh` (cria `dist/resolve-ai-<versão>.zip`) ou use o .zip que já foi enviado.
 4. 👤 No painel, clique em **Novo item** e envie o .zip.
-5. 👤 **Publicar a política de privacidade num endereço público.** Escolha uma das opções:
-   - **GitHub Pages:** em *Settings → Pages* do repositório, escolha a pasta `/docs`. O endereço fica `https://alkaizer27.github.io/convert/privacidade.html`. Exige repositório público ou plano pago.
-   - **Google Sites ou Google Docs público:** copie o texto de `docs/privacidade.html`.
-   - Antes de publicar, troque `SEU-EMAIL-DE-CONTATO` pelo e-mail que você quer mostrar.
+5. 👤 **Publicar a política de privacidade num endereço público (Google Docs):**
+   - Crie um documento novo em https://docs.google.com e cole o texto de `store/politica-de-privacidade.txt`, trocando `SEU-EMAIL-DE-CONTATO` pelo seu e-mail.
+   - Abra **Arquivo → Compartilhar → Publicar na Web → Publicar** e copie o link gerado. Esse é o link da política.
 6. 👤 **Preencher as abas** copiando os textos de `store/listing-pt-BR.md`:
    - **Item da loja:** descrição, categoria Educação, ícone e imagens da pasta `store/`;
    - **Práticas de privacidade:** finalidade única, justificativa de cada permissão, uso de dados e URL da política;
