@@ -1,7 +1,7 @@
 import { loadSettings, saveSettings } from "./lib/settings.js";
 import { getActiveTab, readPage } from "./lib/page.js";
 import { ask } from "./lib/providers.js";
-import { renderMarkdown, renderSources } from "./lib/render.js";
+import { escapeHtml, renderMarkdown, renderSources } from "./lib/render.js";
 
 const $ = (id) => document.getElementById(id);
 const els = {
@@ -47,13 +47,16 @@ async function run(question) {
     if (signal.aborted) return;
 
     setBusy(true, `${name} está analisando${settings.webSearch ? " e pesquisando" : ""}…`);
-    const { text, sources } = await ask({ settings, page, question, signal });
+    const { text, sources, model, notice } = await ask({ settings, page, question, signal });
     if (signal.aborted) return;
 
     const secs = ((performance.now() - started) / 1000).toFixed(1);
     show(
       els.result,
-      renderMarkdown(text) + renderSources(sources) + `<p class="meta">${name} · ${secs}s</p>`
+      renderMarkdown(text) +
+        renderSources(sources) +
+        (notice ? `<p class="notice">${escapeHtml(notice)}</p>` : "") +
+        `<p class="meta">${name} · ${escapeHtml(model || "")} · ${secs}s</p>`
     );
   } catch (err) {
     if (err.name === "AbortError") return;

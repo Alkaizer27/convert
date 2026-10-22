@@ -6,9 +6,11 @@ Os passos marcados com 👤 dependem de você (login, pagamento, aprovação). T
 
 1. 👤 **Criar a chave do Gemini (grátis):** entre em https://aistudio.google.com/app/apikey com seu Gmail e clique em *Create API key*. Copie a chave (começa com `AIza`).
 2. 👤 *(Opcional)* **Criar a chave do Claude:** em https://console.anthropic.com/settings/keys. A assinatura do Claude.ai não vale aqui: é preciso adicionar créditos em *Billing*.
-3. **Instalar a extensão:** descompacte `resolve-ai-0.1.0.zip` numa pasta fixa e abra `chrome://extensions`. Ative o **Modo do desenvolvedor** e clique em **Carregar sem compactação**, escolhendo a pasta.
+3. **Instalar a extensão:** descompacte `resolve-ai-0.1.1.zip` numa pasta fixa e abra `chrome://extensions`. Ative o **Modo do desenvolvedor** e clique em **Carregar sem compactação**, escolhendo a pasta.
 4. Clique no ícone da extensão e depois em **⚙**. Cole a chave e clique em **Testar Gemini**. Deve aparecer "Funcionou ✓".
    - Se o nome do modelo do Gemini estiver desatualizado, a extensão encontra sozinha o modelo Flash mais novo e salva.
+   - Se o modelo estiver sobrecarregado (erro 503), ela tenta outro modelo Flash automaticamente.
+   - **No nível gratuito, a pesquisa no Google não está liberada** (confirmado com a sua chave em 22/10/2026): o Gemini responde normalmente, mas sem fontes, e o painel avisa. Para ter fontes, ative o faturamento no AI Studio ou use o Claude.
 5. Abra uma página com uma questão e clique no ícone (ou use **Alt+Shift+R**).
 
 ## Fase 2: publicar como privada, para aparecer em qualquer Chrome com seu Gmail

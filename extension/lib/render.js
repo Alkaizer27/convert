@@ -1,6 +1,6 @@
 // Markdown mínimo e seguro: escapa todo HTML antes de aplicar a formatação.
 
-function escapeHtml(s) {
+export function escapeHtml(s) {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 }
 
@@ -31,6 +31,10 @@ export function renderMarkdown(md) {
     if (!line.trim()) {
       flushPara();
       flushList();
+    } else if (/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(line)) {
+      flushPara();
+      flushList();
+      out.push("<hr>");
     } else if ((m = line.match(/^#{1,6}\s+(.*)$/))) {
       flushPara();
       flushList();

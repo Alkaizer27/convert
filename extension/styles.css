@@ -150,3 +150,5 @@ main { flex: 1; padding: 12px; }
 .test-result { font-size: 12px; margin-left: 6px; }
 .test-result.ok { color: var(--answer-border); }
 .test-result.fail { color: var(--error-fg); }
+.notice { color: var(--muted); font-size: 12px; border-left: 3px solid var(--border); padding-left: 8px; margin-top: 12px; }
+.result hr { border: none; border-top: 1px solid var(--border); margin: 16px 0; }

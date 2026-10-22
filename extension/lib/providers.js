@@ -126,42 +126,68 @@ export async function askClaude({ settings, page, question, signal }) {
   // Mostra primeiro as fontes citadas; resultados de busca não citados vão depois.
   const cited = sources.filter((s) => !s.unused);
   const others = sources.filter((s) => s.unused);
-  return { text: texts.join(""), sources: dedupeSources([...cited, ...others]).slice(0, 8) };
+  return { text: texts.join(""), sources: dedupeSources([...cited, ...others]).slice(0, 8), model };
 }
 
 // ---------- Gemini ----------
 
+// Usados quando o modelo escolhido está sobrecarregado (503) ou não existe mais (404).
+const GEMINI_BACKUPS = ["gemini-3.5-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite"];
+
+export const GEMINI_NO_SEARCH_NOTICE =
+  "A pesquisa na web do Gemini não está liberada para a sua chave (nível gratuito), então esta resposta veio sem fontes. " +
+  "Para ter fontes, ative o faturamento no AI Studio ou use o Claude.";
+
 export async function askGemini({ settings, page, question, signal }) {
   if (!settings.geminiKey) throw new Error("Falta a chave de API do Gemini. Abra as configurações (⚙).");
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(settings.geminiModel)}:generateContent`;
 
   const parts = [];
   if (page.image) parts.push({ inline_data: { mime_type: page.image.mediaType, data: page.image.data } });
   parts.push({ text: buildUserText(page, question) });
-
-  const body = {
+  const base = {
     systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
     contents: [{ role: "user", parts }],
   };
-  if (settings.webSearch) body.tools = [{ google_search: {} }];
 
-  const post = (u) =>
-    fetch(u, {
+  const call = (model, search) =>
+    fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
       method: "POST",
       headers: { "content-type": "application/json", "x-goog-api-key": settings.geminiKey },
-      body: JSON.stringify(body),
+      body: JSON.stringify(search ? { ...base, tools: [{ google_search: {} }] } : base),
       signal,
     });
-  let res = await post(url);
-  if (res.status === 404) {
-    // Nome de modelo desatualizado: escolhe o Flash mais novo disponível e lembra dele.
-    const model = await pickGeminiModel(settings.geminiKey, signal);
-    if (model) {
-      await chrome.storage.local.set({ geminiModel: model });
-      res = await post(url.replace(`/models/${encodeURIComponent(settings.geminiModel)}:`, `/models/${encodeURIComponent(model)}:`));
+
+  let search = settings.webSearch;
+  let notice = "";
+  const queue = [settings.geminiModel, ...GEMINI_BACKUPS.filter((m) => m !== settings.geminiModel)];
+  let res;
+  let model;
+  let configuredMissing = false;
+
+  while (queue.length) {
+    model = queue.shift();
+    res = await call(model, search);
+    if (res.status === 429 && search) {
+      // No nível gratuito a pesquisa no Google costuma vir sem cota: responde sem ela.
+      const plain = await call(model, false);
+      if (plain.status !== 429) {
+        res = plain;
+        search = false;
+        notice = GEMINI_NO_SEARCH_NOTICE;
+      }
     }
+    if (res.status === 404 && model === settings.geminiModel) {
+      configuredMissing = true;
+      const picked = await pickGeminiModel(settings.geminiKey, signal);
+      if (picked && !queue.includes(picked)) queue.unshift(picked);
+      continue;
+    }
+    if (res.status === 503 || res.status === 404) continue;
+    break;
   }
   if (!res.ok) throw new Error(await readError(res));
+  // Lembra do modelo que funcionou se o configurado não existe mais.
+  if (configuredMissing) await chrome.storage.local.set({ geminiModel: model });
   const data = await res.json();
 
   if (data.promptFeedback?.blockReason) {
@@ -175,7 +201,7 @@ export async function askGemini({ settings, page, question, signal }) {
     .map((c) => c.web)
     .filter(Boolean)
     .map((w) => ({ url: w.uri, title: w.title || w.uri }));
-  return { text, sources: dedupeSources(sources).slice(0, 8) };
+  return { text, sources: dedupeSources(sources).slice(0, 8), model, notice };
 }
 
 // Lista os modelos da conta e devolve o Flash (não Lite) de versão mais alta.
