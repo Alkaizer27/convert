@@ -46,6 +46,18 @@ function editablePlan(who = S.who) { const P = S.people[who]; if (!P.plan) P.pla
 const workout = () => plan().workouts.find(w => w.id === S.tabs[S.who]) || plan().workouts[0];
 const exInfo = it => { const e = LIB[it.ex] || {}; return { n: it.n || e.n || "Exercício", g: e.g || "", img: e.img, t: e.t || "", q: e.q || it.n || "", v: it.v || e.v || "" }; };
 const isCardio = it => exInfo(it).g === "cardio";
+// Trocas "só hoje": ficam junto das séries do dia e somem sozinhas no dia seguinte.
+function todaySwaps(w, who = S.who) { const s = S.people[who].sets[w.id]; return s && s.date === dayKey() && s.sw ? s.sw : {}; }
+function effItem(w, it) {
+  const sw = todaySwaps(w)[it.u];
+  return sw && sw !== it.ex && LIB[sw] ? { ...it, ex: sw, v: undefined, n: undefined, orig: it.ex, origN: exInfo(it).n } : it;
+}
+function todaySets(w) {
+  const P = person(), today = dayKey();
+  let s = P.sets[w.id];
+  if (!s || s.date !== today) s = P.sets[w.id] = { date: today, m: {} };
+  return s;
+}
 
 /* ===== Séries do dia e histórico ===== */
 function marksFor(w, who = S.who) { const s = S.people[who].sets[w.id]; return s && s.date === dayKey() ? s.m : {}; }
@@ -56,8 +68,7 @@ function totals(w, who = S.who) {
 }
 function toggleSet(u, i) {
   const P = person(), w = workout(), today = dayKey();
-  let s = P.sets[w.id];
-  if (!s || s.date !== today) s = P.sets[w.id] = { date: today, m: {} };
+  const s = todaySets(w);
   const arr = s.m[u] = s.m[u] || [];
   arr[i] = !arr[i];
   const tt = totals(w), hk = today + "|" + w.id;
@@ -88,12 +99,12 @@ function render() {
   $("#who").innerHTML = PEOPLE.map(p => `<button data-who="${p}" aria-pressed="${p === S.who}">${esc(DEFAULT_PLANS[p].name)}</button>`).join("");
   $("#tabs").innerHTML = P.workouts.map(x => `<button class="tab" role="tab" aria-selected="${x.id === w.id}" data-tab="${x.id}">${esc(x.name)}<small>${esc(x.sub || "")}</small>${x.id === nx.id ? '<span class="next">HOJE</span>' : ""}</button>`).join("");
   renderBanners(w, nx);
-  const m = marksFor(w);
-  $("#list").innerHTML = w.items.map((it, i) => card(it, i, m[it.u] || [], w.items.length)).join("") ||
+  const m = marksFor(w), tt = totals(w), pct = tt.t ? Math.round(tt.d / tt.t * 100) : 0, C = 2 * Math.PI * 29;
+  $("#hero").innerHTML = `<div class="info"><small>${w.id === nx.id ? "TREINO DE HOJE" : "TREINO"}</small><h2>${esc(w.name)}</h2><p>${esc(w.sub || "")}</p>
+      <div class="meta">${w.items.length} exercícios · ${tt.d} de ${tt.t} séries</div></div>
+    <div class="ring" aria-label="${pct}% concluído"><svg viewBox="0 0 72 72"><circle class="bgc" cx="36" cy="36" r="29"/><circle class="fg" cx="36" cy="36" r="29" stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${(C * (1 - pct / 100)).toFixed(1)}"/></svg><b>${pct}%</b></div>`;
+  $("#list").innerHTML = w.items.map((it, i) => card(editing ? it : effItem(w, it), i, m[it.u] || [], w.items.length)).join("") ||
     `<p class="muted">Nenhum exercício. Toque em “Adicionar exercício”.</p>`;
-  const tt = totals(w);
-  $("#ptext").textContent = `${tt.d}/${tt.t} séries hoje`;
-  $("#pbar").style.width = (tt.t ? tt.d / tt.t * 100 : 0) + "%";
   $("#editbar").innerHTML = editing
     ? `<button class="btn solid" data-act="editDone">Concluir edição</button><button class="btn" data-act="add">${ICON.plus}Adicionar exercício</button>`
     : "";
@@ -109,7 +120,7 @@ function card(it, i, marks, n) {
   const done = marks.filter(Boolean).length >= (+it.s || 1);
   let media;
   if (playing.has(it.u) && e.v) media = `<div class="media"><iframe src="https://www.youtube-nocookie.com/embed/${esc(e.v)}?autoplay=1&playsinline=1&rel=0&modestbranding=1" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen title="${esc(e.n)}"></iframe></div>`;
-  else if (e.img) media = `<div class="media" data-media title="Toque para pausar"><img class="a" loading="lazy" src="img/${e.img}_0.jpg" alt="${esc(e.n)} – posição inicial"><img class="b" loading="lazy" src="img/${e.img}_1.jpg" alt="${esc(e.n)} – posição final"><span class="badge">${i + 1}</span><span class="paused-l">pausado</span></div>`;
+  else if (e.img) media = `<div class="media" data-media title="Toque para pausar"><img class="a" loading="lazy" src="img/${e.img}_0.jpg" alt="${esc(e.n)} – posição inicial"><img class="b" loading="lazy" src="img/${e.img}_1.jpg" alt="${esc(e.n)} – posição final"><span class="badge">${i + 1}</span>${done && !editing ? '<span class="donechip">✓ Feito</span>' : ""}<span class="paused-l">pausado</span></div>`;
   else media = `<div class="media"><div class="noimg">${esc(e.n)}</div><span class="badge">${i + 1}</span></div>`;
   const sets = cardio
     ? `<button class="set wide ${marks[0] ? "on" : ""}" data-set="${it.u}" data-i="0">${marks[0] ? "✓ Feito" : "Marcar como feito"}</button>`
@@ -137,9 +148,9 @@ function card(it, i, marks, n) {
   return `<article class="card ${done && !editing ? "done" : ""}">
     ${media}
     <div class="body">
-      <div class="title"><h2>${esc(e.n)}</h2><span class="scheme">${cardio ? esc(it.r) : esc(it.s) + "×" + esc(it.r)}</span></div>
-      ${e.g ? `<div class="grp">${esc(GROUPS[e.g] || "")}</div>` : ""}
-      ${it.tag && !editing ? `<span class="tag">${esc(it.tag)}</span>` : ""}
+      <h2>${esc(e.n)}</h2>
+      <div class="chips"><span class="chip acc">${cardio ? esc(it.r) : esc(it.s) + " × " + esc(it.r)}</span>${e.g ? `<span class="chip">${esc(GROUPS[e.g] || "")}</span>` : ""}${it.tag && !editing ? `<span class="chip warn">${esc(it.tag)}</span>` : ""}</div>
+      ${it.orig ? `<div class="swapnote"><span>Troca só de hoje · original: <b>${esc(it.origN)}</b></span><button data-act="undoSwap" data-u="${it.u}">Voltar</button></div>` : ""}
       ${!editing && e.t ? `<p class="tip">${esc(e.t)}</p>` : ""}
       ${edit}
     </div></article>`;
@@ -164,13 +175,37 @@ function optRow(key, cur, act, extra = "") {
     <img loading="lazy" src="img/${e.img}_0.jpg" alt=""><span><b>${esc(e.n)}</b><small>${key === cur ? "Atual · " : ""}${esc(GROUPS[e.g])}</small></span></button>`;
 }
 function openSwap(u) {
-  const it = workout().items.find(x => x.u === u), e = exInfo(it);
-  const same = Object.keys(LIB).filter(k => LIB[k].g === e.g && k !== it.ex);
+  const w = workout(), base = w.items.find(x => x.u === u), cur = editing ? base : effItem(w, base), e = exInfo(cur);
+  const opts = e.g ? Object.keys(LIB).filter(k => LIB[k].g === e.g && k !== cur.ex) : [];
+  if (cur.orig) opts.sort((a, b) => (b === base.ex) - (a === base.ex));
   openSheet(sheetHead("Trocar exercício") +
-    `<p class="muted">Outros exercícios que trabalham <b>${esc(GROUPS[e.g] || "o mesmo músculo")}</b>. A troca vale para ${esc(DEFAULT_PLANS[S.who].name)} e mantém séries e repetições.</p>
-     <div class="opts">${same.map(k => optRow(k, it.ex, "doSwap", `data-u="${u}"`)).join("") || '<p class="muted">Nenhuma alternativa cadastrada.</p>'}</div>
-     <h4>Vídeos</h4>
-     <a class="btn" target="_blank" rel="noopener" href="https://www.youtube.com/results?search_query=${encodeURIComponent(e.q)}">${ICON.play}Buscar vídeos de “${esc(e.n)}” no YouTube</a>`);
+    `<div class="current">${e.img ? `<img src="img/${e.img}_0.jpg" alt="">` : ""}<div><small>${cur.orig ? "Hoje você está fazendo" : "Exercício atual"}</small><b>${esc(e.n)}</b></div></div>
+     <p class="muted">Toque numa opção para ver como é feita antes de decidir. ${e.g ? `Todas trabalham <b>${esc(GROUPS[e.g])}</b>.` : ""}</p>
+     <div class="tiles">${opts.map(k => `<button class="tile ${cur.orig && k === base.ex ? "orig" : ""}" data-act="preview" data-u="${u}" data-ex="${k}">
+        <img loading="lazy" src="img/${LIB[k].img}_0.jpg" alt=""><b>${esc(LIB[k].n)}</b><small>${cur.orig && k === base.ex ? "Original do treino" : esc(GROUPS[LIB[k].g])}</small></button>`).join("") || '<p class="muted">Nenhuma alternativa cadastrada para este exercício.</p>'}</div>
+     <h4>Mais opções</h4>
+     <a class="btn" target="_blank" rel="noopener" href="https://www.youtube.com/results?search_query=${encodeURIComponent(e.q)}">${ICON.play}Buscar vídeos de “${esc(e.n)}”</a>`);
+}
+let pvPlay = false;
+function openPreview(u, ex, keep) {
+  if (!keep) pvPlay = false;
+  const w = workout(), base = w.items.find(x => x.u === u), cur = editing ? base : effItem(w, base), L = LIB[ex];
+  const curN = exInfo(cur).n, baseN = exInfo(base).n, isOrig = !editing && cur.orig && ex === base.ex;
+  const media = pvPlay && L.v
+    ? `<div class="media"><iframe src="https://www.youtube-nocookie.com/embed/${esc(L.v)}?autoplay=1&playsinline=1&rel=0&modestbranding=1" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen title="${esc(L.n)}"></iframe></div>`
+    : `<div class="media" data-media><img class="a" src="img/${L.img}_0.jpg" alt="${esc(L.n)} – início"><img class="b" src="img/${L.img}_1.jpg" alt="${esc(L.n)} – fim"><span class="paused-l">pausado</span></div>`;
+  const scheme = L.g === "cardio" ? esc(base.r) : esc(base.s) + " × " + esc(base.r);
+  const always = `<button class="btn" data-act="doSwap" data-u="${u}" data-ex="${ex}">Trocar sempre<small>O ${esc(w.name)} passa a ter ${esc(L.n)}</small></button>`;
+  const today = `<button class="btn solid" data-act="swapToday" data-u="${u}" data-ex="${ex}">Trocar só hoje<small>No próximo ${esc(w.name)} volta ${esc(baseN)}</small></button>`;
+  openSheet(`<h3><button class="backlink" data-act="swap" data-u="${u}">‹ Outras opções</button><button class="close" data-act="close" aria-label="Fechar">✕</button></h3>
+    <div class="preview">${media}
+      <h2>${esc(L.n)}</h2>
+      <div class="chips"><span class="chip acc">${scheme}</span><span class="chip">${esc(GROUPS[L.g])}</span></div>
+      <p class="tip">${esc(L.t)}</p>
+      <div class="actions"><button class="btn primary" data-act="pvVideo" data-u="${u}" data-ex="${ex}">${ICON.play}${pvPlay ? "Fechar vídeo" : "Ver vídeo"}</button></div>
+      <div class="compare"><span>${esc(curN)}</span><span class="arrow">→</span><b>${esc(L.n)}</b></div>
+      <div class="choice">${isOrig ? `<button class="btn solid" data-act="undoSwap" data-u="${u}">Voltar ao original hoje</button>` : editing ? always : today + always}</div>
+    </div>`);
 }
 function openAdd() {
   const groups = Object.keys(GROUPS);
@@ -345,14 +380,30 @@ document.addEventListener("click", async ev => {
   switch (d.act) {
     case "close": closeSheet(); break;
     case "video": {
-      const e = exInfo(items[idx]);
+      const e = exInfo(effItem(w, items[idx]));
       if (!e.v) { open("https://www.youtube.com/results?search_query=" + encodeURIComponent(e.q), "_blank", "noopener"); break; }
       playing.has(u) ? playing.delete(u) : playing.add(u); render(); break;
     }
     case "swap": openSwap(u); break;
+    case "preview": openPreview(u, d.ex); break;
+    case "pvVideo": {
+      const L = LIB[d.ex];
+      if (!L.v) { open("https://www.youtube.com/results?search_query=" + encodeURIComponent(L.q), "_blank", "noopener"); break; }
+      pvPlay = !pvPlay; openPreview(u, d.ex, true); break;
+    }
+    case "swapToday": {
+      const s = todaySets(w); s.sw = s.sw || {}; s.sw[u] = d.ex;
+      playing.delete(u); touch(S.who); closeSheet(); render(); toast("Trocado só para hoje"); break;
+    }
+    case "undoSwap": {
+      const s = todaySets(w); if (s.sw) delete s.sw[u];
+      playing.delete(u); touch(S.who); closeSheet(); render(); toast("Exercício original de volta"); break;
+    }
     case "doSwap": {
       const it = editablePlan().workouts.find(x => x.id === w.id).items.find(x => x.u === u);
-      it.ex = d.ex; delete it.v; delete it.n; playing.delete(u); touch(S.who); closeSheet(); render(); toast("Exercício trocado"); break;
+      it.ex = d.ex; delete it.v; delete it.n; playing.delete(u);
+      const ts = todaySets(w); if (ts.sw) delete ts.sw[u];
+      touch(S.who); closeSheet(); render(); toast("Treino atualizado"); break;
     }
     case "edit": editing = true; playing.clear(); render(); scrollTo(0, 0); break;
     case "editDone": editing = false; render(); toast("Treino salvo"); break;
