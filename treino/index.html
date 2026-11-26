@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0f1115">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Treino">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>Nossos Treinos</title>
 <style>
 :root{
@@ -24,7 +30,7 @@
 *{box-sizing:border-box}
 html,body{margin:0}
 body{background:var(--bg);color:var(--text);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent}
-header{position:sticky;top:0;z-index:5;background:var(--bg);padding:14px 16px 0;border-bottom:1px solid var(--line)}
+header{position:sticky;top:0;z-index:5;background:var(--bg);padding:calc(14px + env(safe-area-inset-top)) 16px 0;border-bottom:1px solid var(--line)}
 h1{font-size:20px;margin:0 0 10px;letter-spacing:-.01em}
 .tabs{display:flex;gap:6px;max-width:760px;margin:0 auto}
 .tab{flex:1;border:0;background:transparent;color:var(--muted);font:inherit;font-weight:600;padding:10px 4px 12px;border-bottom:3px solid transparent;cursor:pointer}
@@ -70,6 +76,10 @@ main{max-width:760px;margin:0 auto;padding:16px 16px 120px}
 .who button[aria-pressed="true"]{background:var(--card);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.12)}
 .tag{display:inline-block;margin:0 0 8px;font-size:12px;font-weight:700;color:var(--accent);background:var(--accent-soft);border-radius:6px;padding:2px 8px}
 .set.wide{padding:0 16px}
+.install{display:none;margin:0 0 14px;padding:12px 14px;border-radius:12px;background:var(--accent-soft);color:var(--text);font-size:14px}
+.install.show{display:flex;gap:10px;align-items:center;justify-content:space-between}
+.install button{border:0;border-radius:10px;background:var(--accent);color:#fff;font:inherit;font-weight:700;padding:8px 12px;cursor:pointer;white-space:nowrap}
+.install .x{background:transparent;color:var(--muted);padding:8px}
 .reset{border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:10px;font:inherit;font-size:13px;padding:6px 10px;cursor:pointer}
 </style>
 </head>
@@ -80,6 +90,7 @@ main{max-width:760px;margin:0 auto;padding:16px 16px 120px}
   <nav class="tabs" role="tablist" id="tabs"></nav>
 </header>
 <main>
+  <div class="install" id="install"><span id="itext"></span><span><button id="ibtn">Instalar</button><button class="x" id="ix" aria-label="Fechar">✕</button></span></div>
   <div class="progress"><span id="ptext"></span><div class="bar"><i id="pbar"></i></div></div>
   <div class="list" id="list"></div>
   <div class="note" id="note"></div>
@@ -206,6 +217,21 @@ function startTimer(s){tEnd=Date.now()+s*1000;clearInterval(tInt);tick();tInt=se
 function tick(){const left=Math.max(0,Math.ceil((tEnd-Date.now())/1000));const el=$("#tt");el.textContent=fmt(left);el.classList.toggle("run",left>0);
   if(left===0){clearInterval(tInt);try{navigator.vibrate&&navigator.vibrate([300,150,300])}catch(e){}}}
 render();
+// App instalável + dados guardados no celular
+if("serviceWorker" in navigator&&location.protocol.startsWith("http"))navigator.serviceWorker.register("sw.js").catch(()=>{});
+try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
+(function(){
+  const standalone=matchMedia("(display-mode: standalone)").matches||navigator.standalone;
+  if(standalone||store.get("treino.noinstall",false)||!location.protocol.startsWith("http"))return;
+  const box=$("#install"),txt=$("#itext"),btn=$("#ibtn");
+  const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
+  let prompt=null;
+  if(ios){txt.innerHTML="Para virar app no iPhone: toque em <b>Compartilhar</b> ⬆️ e depois em <b>Adicionar à Tela de Início</b>.";btn.style.display="none";box.classList.add("show")}
+  addEventListener("beforeinstallprompt",e=>{e.preventDefault();prompt=e;txt.textContent="Instale como app na tela inicial.";btn.style.display="";box.classList.add("show")});
+  btn.onclick=async()=>{if(!prompt)return;prompt.prompt();await prompt.userChoice;prompt=null;box.classList.remove("show")};
+  $("#ix").onclick=()=>{store.set("treino.noinstall",true);box.classList.remove("show")};
+  addEventListener("appinstalled",()=>box.classList.remove("show"));
+})();
 </script>
 </body>
 </html>
