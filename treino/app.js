@@ -195,8 +195,8 @@ function openPreview(u, ex, keep) {
     ? `<div class="media"><iframe src="https://www.youtube-nocookie.com/embed/${esc(L.v)}?autoplay=1&playsinline=1&rel=0&modestbranding=1" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen title="${esc(L.n)}"></iframe></div>`
     : `<div class="media" data-media><img class="a" src="img/${L.img}_0.jpg" alt="${esc(L.n)} – início"><img class="b" src="img/${L.img}_1.jpg" alt="${esc(L.n)} – fim"><span class="paused-l">pausado</span></div>`;
   const scheme = L.g === "cardio" ? esc(base.r) : esc(base.s) + " × " + esc(base.r);
-  const always = `<button class="btn" data-act="doSwap" data-u="${u}" data-ex="${ex}">Trocar sempre<small>O ${esc(w.name)} passa a ter ${esc(L.n)}</small></button>`;
-  const today = `<button class="btn solid" data-act="swapToday" data-u="${u}" data-ex="${ex}">Trocar só hoje<small>No próximo ${esc(w.name)} volta ${esc(baseN)}</small></button>`;
+  const always = `<button class="btn" data-act="askSwap" data-mode="always" data-u="${u}" data-ex="${ex}">Trocar sempre<small>O ${esc(w.name)} passa a ter ${esc(L.n)}</small></button>`;
+  const today = `<button class="btn solid" data-act="askSwap" data-mode="today" data-u="${u}" data-ex="${ex}">Trocar só hoje<small>No próximo ${esc(w.name)} volta ${esc(baseN)}</small></button>`;
   openSheet(`<h3><button class="backlink" data-act="swap" data-u="${u}">‹ Outras opções</button><button class="close" data-act="close" aria-label="Fechar">✕</button></h3>
     <div class="preview">${media}
       <h2>${esc(L.n)}</h2>
@@ -206,6 +206,59 @@ function openPreview(u, ex, keep) {
       <div class="compare"><span>${esc(curN)}</span><span class="arrow">→</span><b>${esc(L.n)}</b></div>
       <div class="choice">${isOrig ? `<button class="btn solid" data-act="undoSwap" data-u="${u}">Voltar ao original hoje</button>` : editing ? always : today + always}</div>
     </div>`);
+}
+// Tela de confirmação: mostra como o treino fica antes de trocar.
+function workoutRows(items, hl) {
+  return `<div class="wlist">${items.map((it, i) => {
+    const e = exInfo(it), cardio = e.g === "cardio", mark = hl && hl[it.u];
+    return `<div class="wrow ${mark ? "hl" : ""}"><span class="n">${i + 1}</span>${e.img ? `<img src="img/${e.img}_0.jpg" alt="">` : '<span class="noimg-s"></span>'}
+      <div><b>${esc(e.n)}</b><small>${cardio ? esc(it.r) : esc(it.s) + " × " + esc(it.r)}${mark ? ` · <s>${esc(mark)}</s>` : ""}</small></div></div>`;
+  }).join("")}</div>`;
+}
+function askSwap(u, ex, mode) {
+  const w = workout(), base = w.items.find(x => x.u === u), cur = editing ? base : effItem(w, base), L = LIB[ex];
+  const after = w.items.map(it => it.u === u ? { ...it, ex, v: undefined, n: undefined } : (editing || mode === "always" ? it : effItem(w, it)));
+  const quando = mode === "today" ? "<b>só hoje</b>. No próximo " + esc(w.name) + " volta " + esc(exInfo(base).n) + "." : "<b>em todos os próximos treinos</b>. Dá para desfazer em Ajustes › Restaurar treinos originais.";
+  openSheet(`<h3><button class="backlink" data-act="preview" data-u="${u}" data-ex="${ex}">‹ Voltar</button><button class="close" data-act="close" aria-label="Fechar">✕</button></h3>
+    <h2 class="qtitle">Tem certeza?</h2>
+    <p class="muted">Trocar <b>${esc(exInfo(cur).n)}</b> por <b>${esc(L.n)}</b> ${quando}</p>
+    <h4>Como fica o ${esc(w.name)}</h4>
+    ${workoutRows(after, { [u]: exInfo(cur).n })}
+    <div class="choice">
+      <button class="btn solid" data-act="${mode === "today" ? "swapToday" : "doSwap"}" data-u="${u}" data-ex="${ex}">Sim, trocar ${mode === "today" ? "só hoje" : "sempre"}</button>
+      <button class="btn" data-act="close">Cancelar</button>
+    </div>`);
+}
+// Diferenças entre o treino atual e o original de uma pessoa.
+function planChanges(who) {
+  const out = [], P = S.people[who], cur = plan(who);
+  for (const dw of DEFAULT_PLANS[who].workouts) {
+    const cw = cur.workouts.find(x => x.id === dw.id) || { items: [] }, ch = [];
+    dw.items.forEach(di => {
+      const ci = cw.items.find(x => x.u === di.u);
+      if (!ci) ch.push(`Removido: ${exInfo(di).n}`);
+      else {
+        if (ci.ex !== di.ex || ci.n) ch.push(`${exInfo(di).n} → ${exInfo(ci).n}`);
+        if (String(ci.s) !== String(di.s) || String(ci.r) !== String(di.r)) ch.push(`${exInfo(ci).n}: ${di.s}×${di.r} → ${ci.s}×${ci.r}`);
+      }
+    });
+    cw.items.filter(ci => !dw.items.some(di => di.u === ci.u)).forEach(ci => ch.push(`Adicionado: ${exInfo(ci).n}`));
+    const ord = cw.items.filter(ci => dw.items.some(di => di.u === ci.u)).map(x => x.u).join(), dord = dw.items.filter(di => cw.items.some(ci => ci.u === di.u)).map(x => x.u).join();
+    if (ord !== dord) ch.push("Ordem dos exercícios mudou");
+    const sw = todaySwaps(dw, who); Object.keys(sw).forEach(u => { const di = cw.items.find(x => x.u === u); if (di && LIB[sw[u]]) ch.push(`Só hoje: ${exInfo(di).n} → ${LIB[sw[u]].n}`); });
+    if (ch.length) out.push({ w: dw, ch });
+  }
+  return out;
+}
+function openRestore() {
+  const who = S.who, name = DEFAULT_PLANS[who].name, ch = planChanges(who);
+  openSheet(sheetHead(`Treinos originais · ${esc(name)}`) +
+    (ch.length
+      ? `<p class="muted">Estas mudanças serão desfeitas. O histórico e as séries marcadas não mudam.</p>
+         ${ch.map(c => `<h4>${esc(c.w.name)}</h4><ul class="changes">${c.ch.map(x => `<li>${esc(x)}</li>`).join("")}</ul>`).join("")}
+         <div class="choice"><button class="btn solid" data-act="doRestoreAll">Sim, restaurar treinos de ${esc(name)}</button><button class="btn" data-act="close">Cancelar</button></div>`
+      : `<p class="muted">Os treinos de ${esc(name)} já estão iguais aos originais.</p>`) +
+    `<h4>Treinos originais</h4>` + DEFAULT_PLANS[who].workouts.map(w => `<details class="orig"><summary>${esc(w.name)} <small>${esc(w.sub || "")}</small></summary>${workoutRows(w.items)}</details>`).join(""));
 }
 function openAdd() {
   const groups = Object.keys(GROUPS);
@@ -259,6 +312,8 @@ function openMenu() {
      <h4>Link direto de cada um</h4><p class="muted">Abre o app já no treino da pessoa.</p>
      ${PEOPLE.map(p => `<div class="row"><input class="field" readonly value="${esc(baseUrl() + "?p=" + p)}"><button class="btn primary" style="flex:none;padding:0 14px" data-act="shareLink" data-p="${p}">Enviar</button></div>`).join("")}
      <h4>Sincronizar entre celulares</h4>${sync}
+     <h4>Treinos</h4><p class="muted">Ver os treinos originais e desfazer trocas e edições de ${esc(DEFAULT_PLANS[S.who].name)}.</p>
+     <div class="row"><button class="btn" data-act="openRestore">Restaurar treinos originais</button></div>
      <h4>Backup</h4><p class="muted">Salva tudo (treinos editados, séries e histórico dos dois) num arquivo. Use para trocar de celular ou se limpar o navegador.</p>
      <div class="row"><button class="btn" data-act="export">Salvar backup</button><label class="btn" style="margin:0">Restaurar backup<input type="file" accept="application/json,.json" id="importFile" hidden></label></div>`);
 }
@@ -390,6 +445,13 @@ document.addEventListener("click", async ev => {
       const L = LIB[d.ex];
       if (!L.v) { open("https://www.youtube.com/results?search_query=" + encodeURIComponent(L.q), "_blank", "noopener"); break; }
       pvPlay = !pvPlay; openPreview(u, d.ex, true); break;
+    }
+    case "askSwap": askSwap(u, d.ex, d.mode); break;
+    case "openRestore": openRestore(); break;
+    case "doRestoreAll": {
+      const P = S.people[S.who]; P.plan = null;
+      for (const k in P.sets) if (P.sets[k].sw) delete P.sets[k].sw;
+      editing = false; playing.clear(); touch(S.who); closeSheet(); render(); toast("Treinos originais restaurados"); break;
     }
     case "swapToday": {
       const s = todaySets(w); s.sw = s.sw || {}; s.sw[u] = d.ex;
