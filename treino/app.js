@@ -212,7 +212,7 @@ const baseUrl = () => location.href.split(/[?#]/)[0];
 function openMenu() {
   const th = S.theme, cfg = !!window.SYNC_CONFIG;
   let sync;
-  if (!cfg) sync = `<p class="muted">Ainda não ligada. Falta configurar o Firebase (veja o arquivo <code>config.js</code>). Enquanto isso, cada celular guarda os próprios dados.</p>`;
+  if (!cfg) sync = `<p class="muted">Ainda não ligada. Falta configurar o banco de dados (Supabase) no arquivo <code>config.js</code>. Enquanto isso, cada celular guarda os próprios dados.</p>`;
   else if (!S.sync.code) sync = `<p class="muted">Junte os dois celulares no mesmo “código da família” para verem o treino um do outro.</p>
       <div class="row"><button class="btn solid" data-act="syncNew">Criar código</button></div>
       <div class="row"><input class="field" id="syncCode" placeholder="Ou cole o código recebido"><button class="btn" style="flex:none;padding:0 14px" data-act="syncJoin">Entrar</button></div>`;
@@ -250,14 +250,16 @@ async function importData(file) {
   } catch (e) { alert("Não consegui ler esse arquivo de backup."); }
 }
 
-/* ===== Sincronização (Firebase Firestore, opcional) ===== */
+/* ===== Sincronização (Supabase, opcional) ===== */
 const Sync = {
   status: "", timers: {}, pending: new Set(),
   active() { return !!(window.SYNC_CONFIG && S.sync.code); },
-  url(mask) {
-    const c = window.SYNC_CONFIG;
-    return `https://firestore.googleapis.com/v1/projects/${c.projectId}/databases/(default)/documents/familias/${encodeURIComponent(S.sync.code)}?key=${c.apiKey}` +
-      (mask ? mask.map(f => "&updateMask.fieldPaths=" + f).join("") : "");
+  async rpc(fn, args) {
+    const c = window.SYNC_CONFIG, h = { "Content-Type": "application/json", apikey: c.key };
+    if (/^eyJ/.test(c.key)) h.Authorization = "Bearer " + c.key; // chave "anon" antiga (JWT)
+    const r = await fetch(c.url.replace(/\/+$/, "") + "/rest/v1/rpc/" + fn, { method: "POST", headers: h, body: JSON.stringify(args) });
+    if (!r.ok) throw new Error(r.status);
+    const txt = await r.text(); return txt ? JSON.parse(txt) : null;
   },
   schedule(who) {
     if (!this.active()) return;
@@ -267,23 +269,17 @@ const Sync = {
   async push() {
     if (!this.active() || !this.pending.size) return;
     const whos = [...this.pending]; this.pending.clear();
-    const fields = {}; for (const w of whos) fields[w] = { stringValue: JSON.stringify(S.people[w]) };
     try {
-      const r = await fetch(this.url(whos), { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fields }) });
-      if (!r.ok) throw new Error(r.status);
+      for (const w of whos) await this.rpc("treino_set", { p_code: S.sync.code, p_who: w, p_data: S.people[w] });
       this.ok();
     } catch (e) { whos.forEach(w => this.pending.add(w)); this.fail(); }
   },
   async pull() {
     if (!this.active()) return;
     try {
-      const r = await fetch(this.url());
-      if (r.status === 404) { PEOPLE.forEach(p => this.pending.add(p)); return this.push(); }
-      if (!r.ok) throw new Error(r.status);
-      const f = (await r.json()).fields || {}; let changed = false;
+      const f = (await this.rpc("treino_get", { p_code: S.sync.code })) || {}; let changed = false;
       for (const p of PEOPLE) {
-        const remote = f[p] && f[p].stringValue ? JSON.parse(f[p].stringValue) : null;
-        const local = S.people[p];
+        const remote = f[p] || null, local = S.people[p];
         if (remote && (remote.updatedAt || 0) > (local.updatedAt || 0)) { S.people[p] = Object.assign(blankPerson(), remote); changed = true; }
         else if (!remote || (local.updatedAt || 0) > (remote.updatedAt || 0)) this.pending.add(p);
       }

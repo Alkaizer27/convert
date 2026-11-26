@@ -1,6 +1,6 @@
 // Guarda o app no celular para abrir mesmo sem internet.
 // Ao publicar mudanças, aumente a versão para os celulares baixarem de novo.
-const CACHE = "treino-v2";
+const CACHE = "treino-v3";
 const CORE = ["./", "./index.html", "./app.js", "./data.js", "./config.js", "./manifest.webmanifest",
   "./icon-192.png", "./icon-512.png", "./icon-maskable-512.png", "./apple-touch-icon.png"];
 const IMAGES = [
