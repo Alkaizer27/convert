@@ -142,7 +142,7 @@ window.DEFAULT_PLANS = {
           { ex: "puxador_triangulo", s: 4, r: "8-12" },
           { ex: "remada_maquina", s: 4, r: "8-12" },
           { ex: "face_pull", s: 3, r: "12" },
-          { ex: "rosca_direta", s: 3, r: "12" },
+          { ex: "rosca_direta", n: "Rosca direta barra", s: 3, r: "12" },
           { ex: "lombar_maquina", s: 3, r: "12-15" }
         ] },
       { id: "C", name: "Treino C", sub: "Perna · Glúteo",
@@ -153,7 +153,7 @@ window.DEFAULT_PLANS = {
           { ex: "cadeira_flexora", s: 3, r: "10-12" },
           { ex: "extensora", s: 3, r: "12-15" },
           { ex: "abdutora", s: 3, r: "15" },
-          { ex: "panturrilha_em_pe", s: 4, r: "15" }
+          { ex: "panturrilha_em_pe", n: "Panturrilha (leg ou banco)", s: 4, r: "15" }
         ] }
     ]
   },
@@ -177,7 +177,7 @@ window.DEFAULT_PLANS = {
           { ex: "desenvolvimento_maquina", s: 3, r: "12" },
           { ex: "elevacao_lateral", s: 3, r: "12" },
           { ex: "rosca_direta", s: 3, r: "12", tag: "Bi-set: emende com o próximo, sem descanso", bs: 1 },
-          { ex: "triceps_barra", s: 3, r: "12", tag: "Bi-set: descanse depois deste" },
+          { ex: "triceps_barra", n: "Tríceps cross", s: 3, r: "12", tag: "Bi-set: descanse depois deste" },
           { ex: "abdominal_maquina", s: 3, r: "15" },
           { ex: "bicicleta", s: 1, r: "10 min" }
         ] },
@@ -187,7 +187,7 @@ window.DEFAULT_PLANS = {
           { ex: "gluteo_maquina", s: 3, r: "12" },
           { ex: "mesa_flexora", s: 3, r: "12" },
           { ex: "adutora", s: 3, r: "12" },
-          { ex: "panturrilha_sentada", s: 3, r: "15" },
+          { ex: "panturrilha_sentada", n: "Panturrilha", s: 3, r: "15" },
           { ex: "escada", s: 1, r: "10 min" }
         ] }
     ]

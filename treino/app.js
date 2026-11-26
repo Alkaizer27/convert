@@ -238,7 +238,7 @@ function planChanges(who) {
       const ci = cw.items.find(x => x.u === di.u);
       if (!ci) ch.push(`Removido: ${exInfo(di).n}`);
       else {
-        if (ci.ex !== di.ex || ci.n) ch.push(`${exInfo(di).n} → ${exInfo(ci).n}`);
+        if (ci.ex !== di.ex || (ci.n || "") !== (di.n || "")) ch.push(`${exInfo(di).n} → ${exInfo(ci).n}`);
         if (String(ci.s) !== String(di.s) || String(ci.r) !== String(di.r)) ch.push(`${exInfo(ci).n}: ${di.s}×${di.r} → ${ci.s}×${ci.r}`);
       }
     });
