@@ -498,7 +498,7 @@ document.addEventListener("click", async ev => {
     case "calNext": calMonth.setMonth(calMonth.getMonth() + 1); openHist(); break;
     case "shareLink": shareText("Treino", "Meu treino:", baseUrl() + "?p=" + d.p); break;
     case "export": exportData(); break;
-    case "syncNew": S.sync.code = newCode(); save(); PEOPLE.forEach(p => Sync.pending.add(p)); await Sync.push(); Sync.start(); openMenu(); render(); break;
+    case "syncNew": if (S.sync.code) { openMenu(); break; } t.disabled = true; S.sync.code = newCode(); save(); PEOPLE.forEach(p => Sync.pending.add(p)); await Sync.push(); Sync.start(); openMenu(); render(); break;
     case "syncJoin": {
       const c = ($("#syncCode").value || "").trim(); if (c.length < 16) { alert("Código inválido."); break; }
       S.sync.code = c; save(); await Sync.pull(); Sync.start(); openMenu(); render(); toast("Sincronização ligada"); break;
