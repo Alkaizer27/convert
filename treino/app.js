@@ -66,13 +66,63 @@ function totals(w, who = S.who) {
   for (const it of w.items) { t += +it.s || 0; d += (m[it.u] || []).filter(Boolean).length; }
   return { d, t };
 }
+// Finalizar treino: resumo do dia.
+function dayState(w) { const s = S.people[S.who].sets[w.id]; return s && s.date === dayKey() ? s : null; }
+const fmtDur = ms => { const m = Math.max(1, Math.round(ms / 60000)); return m >= 60 ? `${Math.floor(m / 60)}h${pad(m % 60)}` : `${m} min`; };
+function finishWorkout(w) {
+  const P = person(), s = todaySets(w), tt = totals(w), hk = dayKey() + "|" + w.id;
+  s.fin = Date.now(); s.start = s.start || s.fin;
+  P.hist[hk] = Object.assign(P.hist[hk] || {}, { d: tt.d, t: tt.t, dur: s.fin - s.start, fin: 1 });
+  touch(S.who);
+}
+function reopenWorkout(w) {
+  const P = person(), s = dayState(w); if (!s) return;
+  delete s.fin; const h = P.hist[dayKey() + "|" + w.id]; if (h) { delete h.fin; delete h.dur; }
+  touch(S.who);
+}
+function openSummary(w, celebrate) {
+  const s = dayState(w) || {}, tt = totals(w), m = marksFor(w), items = w.items.map(it => effItem(w, it));
+  const full = items.filter(it => (m[it.u] || []).filter(Boolean).length >= (+it.s || 1)).length;
+  const all = tt.t > 0 && tt.d >= tt.t, dur = s.start ? (s.fin || Date.now()) - s.start : 0;
+  const now = new Date(), ws = new Date(now); ws.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  const week = new Set(sessions().filter(x => x.date >= dayKey(ws)).map(x => x.date)).size;
+  const nx = plan().workouts[(plan().workouts.findIndex(x => x.id === w.id) + 1) % plan().workouts.length];
+  const rows = items.map(it => { const e = exInfo(it), n = (m[it.u] || []).filter(Boolean).length, tot = +it.s || 1;
+    return `<div class="wrow ${n >= tot ? "ok" : ""}"><span class="n">${n >= tot ? "✓" : n ? "½" : "–"}</span>${e.img ? `<img src="img/${e.img}_0.jpg" alt="">` : '<span class="noimg-s"></span>'}<div><b>${esc(e.n)}</b><small>${isCardio(it) ? (n ? "feito" : "não feito") : `${n} de ${tot} séries`}</small></div></div>`; }).join("");
+  openSheet(sheetHead("<span></span>") + `
+    <div class="sumhead ${all ? "all" : ""}"><div class="emoji">${all ? "🎉" : "💪"}</div>
+      <h2>${all ? "Treino completo!" : "Treino finalizado"}</h2><p>${esc(DEFAULT_PLANS[S.who].name)} · ${esc(w.name)} · ${fmtDay(dayKey())}</p></div>
+    <div class="stats"><div class="stat"><b>${dur ? fmtDur(dur) : "–"}</b><span>duração</span></div><div class="stat"><b>${tt.d}/${tt.t}</b><span>séries</span></div><div class="stat"><b>${full}/${items.length}</b><span>exercícios</span></div></div>
+    <p class="muted" style="margin:0 0 4px">Treinos nesta semana: <b>${week}</b> · Próximo: <b>${esc(nx.name)}</b></p>
+    <h4>Exercícios</h4>${`<div class="wlist">${rows}</div>`}
+    <div class="choice">
+      <button class="btn solid" data-act="shareSummary">Compartilhar resumo</button>
+      <button class="btn" data-act="reopen">Continuar treinando</button>
+      <button class="btn" data-act="close">Fechar</button>
+    </div>`);
+  if (celebrate) confetti();
+}
+function confetti() {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const c = document.createElement("canvas"), x = c.getContext("2d"), W = c.width = innerWidth, H = c.height = innerHeight;
+  c.style.cssText = "position:fixed;inset:0;z-index:40;pointer-events:none"; document.body.appendChild(c);
+  const cols = ["#ff7a2e", "#e8590c", "#2f9e44", "#fab005", "#4dabf7", "#f06595"];
+  const ps = Array.from({ length: 140 }, () => ({ x: W / 2, y: H * .35, vx: (Math.random() - .5) * 14, vy: Math.random() * -14 - 4, r: Math.random() * 6 + 4, c: cols[Math.random() * cols.length | 0], a: Math.random() * 6, va: (Math.random() - .5) * .3 }));
+  let t0 = performance.now();
+  (function f(now) {
+    x.clearRect(0, 0, W, H);
+    for (const p of ps) { p.vy += .35; p.vx *= .99; p.x += p.vx; p.y += p.vy; p.a += p.va; x.save(); x.translate(p.x, p.y); x.rotate(p.a); x.fillStyle = p.c; x.fillRect(-p.r / 2, -p.r / 4, p.r, p.r / 2); x.restore(); }
+    if (now - t0 < 2600) requestAnimationFrame(f); else c.remove();
+  })(t0);
+}
 function toggleSet(u, i) {
   const P = person(), w = workout(), today = dayKey();
   const s = todaySets(w);
   const arr = s.m[u] = s.m[u] || [];
   arr[i] = !arr[i];
+  if (arr[i] && !s.start) s.start = Date.now();
   const tt = totals(w), hk = today + "|" + w.id;
-  if (tt.d > 0) P.hist[hk] = { d: tt.d, t: tt.t }; else delete P.hist[hk];
+  if (tt.d > 0) P.hist[hk] = Object.assign(P.hist[hk] || {}, { d: tt.d, t: tt.t }); else { delete P.hist[hk]; delete s.fin; delete s.start; }
   touch(S.who);
   return arr[i];
 }
@@ -101,7 +151,7 @@ function render() {
   renderBanners(w, nx);
   const m = marksFor(w), tt = totals(w), pct = tt.t ? Math.round(tt.d / tt.t * 100) : 0, C = 2 * Math.PI * 29;
   $("#hero").innerHTML = `<div class="info"><small>${w.id === nx.id ? "TREINO DE HOJE" : "TREINO"}</small><h2>${esc(w.name)}</h2><p>${esc(w.sub || "")}</p>
-      <div class="meta">${w.items.length} exercícios · ${tt.d} de ${tt.t} séries</div></div>
+      <div class="meta">${(() => { const ds = dayState(w); return ds && ds.fin ? `✓ Concluído · ${fmtDur(ds.fin - ds.start)}` : `${w.items.length} exercícios · ${tt.d} de ${tt.t} séries`; })()}</div></div>
     <div class="ring" aria-label="${pct}% concluído"><svg viewBox="0 0 72 72"><circle class="bgc" cx="36" cy="36" r="29"/><circle class="fg" cx="36" cy="36" r="29" stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${(C * (1 - pct / 100)).toFixed(1)}"/></svg><b>${pct}%</b></div>`;
   $("#list").innerHTML = w.items.map((it, i) => card(editing ? it : effItem(w, it), i, m[it.u] || [], w.items.length)).join("") ||
     `<p class="muted">Nenhum exercício. Toque em “Adicionar exercício”.</p>`;
@@ -111,7 +161,10 @@ function render() {
   $("#after").innerHTML = (w.note ? `<div class="note"><b>Obs.:</b> ${esc(w.note)}</div>` : "") +
     (editing
       ? `<div class="row" style="margin-top:16px"><button class="btn danger" data-act="restore">Restaurar ${esc(w.name)} original</button></div>`
-      : `<div class="row" style="margin-top:16px"><button class="btn" data-act="edit">${ICON.edit}Editar ${esc(w.name)}</button></div>`);
+      : (() => { const ds = dayState(w);
+          const fin = ds && ds.fin ? `<button class="btn finish done" data-act="summary">✓ Treino concluído · ver resumo</button>`
+            : `<button class="btn finish" data-act="finish">${tt.t && tt.d >= tt.t ? "🎉 Finalizar treino" : "Finalizar treino"}</button>`;
+          return `<div class="row" style="margin-top:18px">${fin}</div><div class="row"><button class="btn" data-act="edit">${ICON.edit}Editar ${esc(w.name)}</button></div>`; })());
   $("#syncDot").hidden = !Sync.active();
 }
 
@@ -292,7 +345,7 @@ function openHist() {
      <div class="calhead"><button class="close" data-act="calPrev" aria-label="Mês anterior">‹</button><b>${(s => s[0].toUpperCase() + s.slice(1))(calMonth.toLocaleDateString("pt-BR", { month: "long", year: "numeric" }))}</b><button class="close" data-act="calNext" aria-label="Próximo mês">›</button></div>
      <div class="cal">${cells}</div>
      <h4>Últimos treinos</h4>
-     <div class="log">${ss.slice(0, 15).map(s => `<div><span>${fmtDay(s.date)} · ${esc(names[s.wid] || s.wid)}</span><b>${s.d}/${s.t}</b></div>`).join("") || '<p class="muted">Nenhum treino ainda. Marque as séries durante o treino e eles aparecem aqui.</p>'}</div>`);
+     <div class="log">${ss.slice(0, 15).map(s => `<div><span>${fmtDay(s.date)} · ${esc(names[s.wid] || s.wid)}${s.fin ? " ✓" : ""}</span><b>${s.dur ? fmtDur(s.dur) + " · " : ""}${s.d}/${s.t}</b></div>`).join("") || '<p class="muted">Nenhum treino ainda. Marque as séries durante o treino e eles aparecem aqui.</p>'}</div>`);
 }
 
 /* ===== Ajustes: tema, links, backup, sincronização ===== */
@@ -491,7 +544,8 @@ document.addEventListener("click", async ev => {
   if (d.who) { S.who = d.who; editing = false; playing.clear(); S.tabs[S.who] = S.tabs[S.who] || nextWorkout().id; save(); render(); scrollTo(0, 0); return; }
   if (d.tab) { S.tabs[S.who] = d.tab; playing.clear(); save(); render(); scrollTo(0, 0); return; }
   if (d.set) {
-    const on = toggleSet(d.set, +d.i), it = w.items.find(x => x.u === d.set);
+    const on = toggleSet(d.set, +d.i), it = w.items.find(x => x.u === d.set), tt = totals(w), ds = dayState(w);
+    if (on && tt.t && tt.d >= tt.t && ds && !ds.fin) { finishWorkout(w); render(); openSummary(w, true); return; }
     render();
     if (on && !isCardio(it) && !it.bs) startTimer(S.rest, nextAfter(w, d.set, +d.i));
     return;
@@ -520,6 +574,23 @@ document.addEventListener("click", async ev => {
       const L = LIB[d.ex];
       if (!L.v) { open("https://www.youtube.com/results?search_query=" + encodeURIComponent(L.q), "_blank", "noopener"); break; }
       pvPlay = !pvPlay; openPreview(u, d.ex, true); break;
+    }
+    case "finish": {
+      const tt = totals(w);
+      if (!tt.d) { toast("Marque pelo menos uma série antes de finalizar"); break; }
+      if (tt.d < tt.t && !confirm(`Finalizar o ${w.name} com ${tt.d} de ${tt.t} séries?`)) break;
+      finishWorkout(w); render(); openSummary(w, tt.d >= tt.t); break;
+    }
+    case "summary": openSummary(w); break;
+    case "reopen": reopenWorkout(w); closeSheet(); render(); toast("Treino reaberto"); break;
+    case "shareSummary": {
+      const s = dayState(w) || {}, tt = totals(w), items = w.items.map(it => effItem(w, it)), m = marksFor(w);
+      const txt = `${DEFAULT_PLANS[S.who].name} · ${w.name} (${fmtDay(dayKey())})\n` +
+        (s.start ? `⏱ ${fmtDur((s.fin || Date.now()) - s.start)} · ` : "") + `${tt.d}/${tt.t} séries\n` +
+        items.map(it => `${(m[it.u] || []).filter(Boolean).length >= (+it.s || 1) ? "✅" : "▫️"} ${exInfo(it).n}`).join("\n");
+      try { if (navigator.share) { await navigator.share({ text: txt }); break; } } catch (e) { break; }
+      try { await navigator.clipboard.writeText(txt); toast("Resumo copiado"); } catch (e) { prompt("Copie o resumo:", txt); }
+      break;
     }
     case "askSwap": askSwap(u, d.ex, d.mode); break;
     case "openRestore": openRestore(); break;

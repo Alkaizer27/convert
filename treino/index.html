@@ -217,6 +217,14 @@ details.orig .wrow{box-shadow:none;background:var(--soft)}
 .tgl[aria-checked="true"] i::after{transform:translateX(18px)}
 .timer .t.flash{animation:flash .5s ease-in-out 5}
 @keyframes flash{50%{color:var(--ok);transform:scale(1.15)}}
+.btn.finish{min-height:52px;font-size:16px;background:var(--ok);border-color:transparent;color:#fff}
+.btn.finish.done{background:var(--ok-soft);color:var(--ok)}
+.sumhead{text-align:center;margin:-6px 0 14px}
+.sumhead .emoji{font-size:46px;line-height:1}
+.sumhead h2{margin:6px 0 2px;font-size:24px;letter-spacing:-.02em}
+.sumhead.all h2{color:var(--ok)}
+.sumhead p{margin:0;color:var(--muted);font-size:14px}
+.wrow.ok .n{color:var(--ok)}
 .toast{position:fixed;left:50%;top:calc(16px + env(safe-area-inset-top));transform:translateX(-50%) translateY(-150%);z-index:30;background:var(--text);color:var(--bg);border-radius:14px;padding:10px 16px;font-size:14px;font-weight:700;transition:transform .25s;max-width:calc(100% - 32px)}
 .toast.show{transform:translateX(-50%) translateY(0)}
 </style>
@@ -249,8 +257,8 @@ details.orig .wrow{box-shadow:none;background:var(--soft)}
 <div class="overlay" id="overlay"></div>
 <div class="sheet" id="sheet" role="dialog" aria-modal="true"><div class="grab"></div><div id="sheetBody"></div></div>
 <div class="toast" id="toast"></div>
-<script src="config.js?v=11"></script>
-<script src="data.js?v=11"></script>
-<script src="app.js?v=11"></script>
+<script src="config.js?v=12"></script>
+<script src="data.js?v=12"></script>
+<script src="app.js?v=12"></script>
 </body>
 </html>
