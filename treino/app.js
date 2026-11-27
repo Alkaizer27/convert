@@ -31,7 +31,7 @@ function load() {
   try { s = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) {}
   s = s || {};
   s.theme = s.theme || "auto"; s.rest = s.rest || 90; s.who = PEOPLE.includes(s.who) ? s.who : PEOPLE[0];
-  s.tabs = s.tabs || {}; s.flags = s.flags || {}; s.sync = s.sync || { code: null };
+  s.tabs = s.tabs || {}; s.flags = s.flags || {}; s.alerts = Object.assign({ sound: true, vibrate: true, notify: false, wake: false }, s.alerts || {}); s.sync = s.sync || { code: null };
   s.people = s.people || {};
   for (const p of PEOPLE) s.people[p] = Object.assign(blankPerson(), s.people[p] || {});
   return s;
@@ -308,7 +308,13 @@ function openMenu() {
       <div class="row"><button class="btn primary" data-act="syncShare">Enviar convite</button><button class="btn" data-act="syncNow">Sincronizar agora</button></div>
       <div class="row"><button class="btn danger" data-act="syncLeave">Desligar neste celular</button></div>`;
   openSheet(sheetHead("Ajustes") +
-    `<h4>Aparência</h4><div class="seg">${[["auto", "Automático"], ["light", "Claro"], ["dark", "Escuro"]].map(([k, l]) => `<button data-theme="${k}" aria-pressed="${th === k}">${l}</button>`).join("")}</div>
+    `<h4>Aviso de fim do descanso</h4>
+     <div class="toggles">${[["sound", "Som", "Três bipes quando o tempo acaba"], ["vibrate", "Vibrar", "No Android; o iPhone não permite"],
+       ["notify", "Notificação", "Avisa mesmo com outro app aberto"], ["wake", "Manter tela ligada", "Durante o treino a tela não apaga"]]
+       .map(([k, l, s]) => `<button class="tgl" data-alert="${k}" role="switch" aria-checked="${!!S.alerts[k]}"><span><b>${l}</b><small>${s}</small></span><i></i></button>`).join("")}</div>
+     <div class="row"><button class="btn" data-act="testAlert">Testar aviso (5 segundos)</button></div>
+     <p class="muted" style="margin-top:8px">Com a tela bloqueada o celular pode atrasar ou segurar o aviso. Para não perder, deixe “Manter tela ligada” ativo.</p>
+     <h4>Aparência</h4><div class="seg">${[["auto", "Automático"], ["light", "Claro"], ["dark", "Escuro"]].map(([k, l]) => `<button data-theme="${k}" aria-pressed="${th === k}">${l}</button>`).join("")}</div>
      <h4>Link direto de cada um</h4><p class="muted">Abre o app já no treino da pessoa.</p>
      ${PEOPLE.map(p => `<div class="row"><input class="field" readonly value="${esc(baseUrl() + "?p=" + p)}"><button class="btn primary" style="flex:none;padding:0 14px" data-act="shareLink" data-p="${p}">Enviar</button></div>`).join("")}
      <h4>Sincronizar entre celulares</h4>${sync}
@@ -394,14 +400,76 @@ function parseYouTube(s) {
   return m ? m[1] : null;
 }
 
-/* ===== Cronômetro de descanso ===== */
-let tEnd = 0, tInt = null;
+/* ===== Cronômetro de descanso e avisos ===== */
+let tEnd = 0, tInt = null, tDone = null, nextLabel = "";
 const fmt = s => Math.floor(s / 60) + ":" + pad(s % 60);
-function startTimer(s) { tEnd = Date.now() + s * 1000; clearInterval(tInt); tick(); tInt = setInterval(tick, 250); }
+function startTimer(s, label) {
+  tEnd = Date.now() + s * 1000; nextLabel = label || "";
+  clearInterval(tInt); clearTimeout(tDone);
+  tick(); tInt = setInterval(tick, 250);
+  tDone = setTimeout(restDone, s * 1000); // dispara mesmo com a tela em segundo plano (quando o celular deixa)
+  Alerts.unlockAudio(); Alerts.keepAwake();
+}
 function tick() {
   const left = Math.max(0, Math.ceil((tEnd - Date.now()) / 1000)), el = $("#tt");
   el.textContent = fmt(left); el.classList.toggle("run", left > 0);
-  if (left === 0) { clearInterval(tInt); try { navigator.vibrate && navigator.vibrate([300, 150, 300]); } catch (e) {} }
+  if (left === 0) clearInterval(tInt);
+}
+function restDone() {
+  if (!tEnd || Date.now() < tEnd - 500) return;
+  tEnd = 0; tick(); Alerts.fire("Descanso terminado", nextLabel ? "Próxima: " + nextLabel : "Hora da próxima série");
+}
+const Alerts = {
+  ctx: null, wakeLock: null,
+  unlockAudio() {
+    if (!S.alerts.sound) return;
+    try { this.ctx = this.ctx || new (window.AudioContext || window.webkitAudioContext)(); if (this.ctx.state === "suspended") this.ctx.resume(); } catch (e) {}
+  },
+  beep() {
+    try {
+      this.unlockAudio(); const c = this.ctx; if (!c) return;
+      [0, .28, .56].forEach((t0, i) => {
+        const o = c.createOscillator(), g = c.createGain(), at = c.currentTime + t0;
+        o.type = "sine"; o.frequency.value = i === 2 ? 1320 : 880;
+        g.gain.setValueAtTime(0.0001, at); g.gain.exponentialRampToValueAtTime(0.5, at + .02); g.gain.exponentialRampToValueAtTime(0.0001, at + .22);
+        o.connect(g).connect(c.destination); o.start(at); o.stop(at + .24);
+      });
+    } catch (e) {}
+  },
+  async notify(title, body) {
+    if (!S.alerts.notify || !("Notification" in window) || Notification.permission !== "granted") return false;
+    const opts = { body, tag: "descanso", renotify: true, icon: "icon-192.png", badge: "icon-192.png", vibrate: [300, 150, 300, 150, 300] };
+    try { const reg = await navigator.serviceWorker?.getRegistration(); if (reg) { await reg.showNotification(title, opts); return true; } } catch (e) {}
+    try { new Notification(title, opts); return true; } catch (e) { return false; }
+  },
+  fire(title, body) {
+    if (S.alerts.sound) this.beep();
+    if (S.alerts.vibrate) try { navigator.vibrate && navigator.vibrate([300, 150, 300, 150, 300]); } catch (e) {}
+    if (document.visibilityState === "visible") { toast("⏱ " + title + (body ? " · " + body : "")); const el = $("#tt"); el.classList.add("flash"); setTimeout(() => el.classList.remove("flash"), 2500); }
+    else this.notify(title, body);
+  },
+  async askNotify() {
+    if (!("Notification" in window)) {
+      alert(/iphone|ipad|ipod/i.test(navigator.userAgent) && !navigator.standalone
+        ? "No iPhone, as notificações só funcionam com o app instalado na Tela de Início (Compartilhar › Adicionar à Tela de Início). Depois abra pelo ícone e ligue de novo."
+        : "Este navegador não permite notificações.");
+      return false;
+    }
+    if (Notification.permission === "granted") return true;
+    if (Notification.permission === "denied") { alert("As notificações estão bloqueadas para este site. Libere nas configurações do navegador (cadeado ao lado do endereço › Notificações) e tente de novo."); return false; }
+    return (await Notification.requestPermission()) === "granted";
+  },
+  async keepAwake() {
+    if (!S.alerts.wake || !("wakeLock" in navigator) || this.wakeLock || document.visibilityState !== "visible") return;
+    try { this.wakeLock = await navigator.wakeLock.request("screen"); this.wakeLock.addEventListener("release", () => { this.wakeLock = null; }); } catch (e) {}
+  },
+  release() { try { this.wakeLock && this.wakeLock.release(); } catch (e) {} this.wakeLock = null; }
+};
+function nextAfter(w, u, i) {
+  const items = w.items.map(it => effItem(w, it)), k = items.findIndex(x => x.u === u), it = items[k];
+  if (i + 1 < (+it.s || 1)) return `${exInfo(it).n} (série ${i + 2} de ${it.s})`;
+  const nx = items[k + 1];
+  return nx ? exInfo(nx).n : "";
 }
 
 /* ===== Instalação como app ===== */
@@ -425,10 +493,17 @@ document.addEventListener("click", async ev => {
   if (d.set) {
     const on = toggleSet(d.set, +d.i), it = w.items.find(x => x.u === d.set);
     render();
-    if (on && !isCardio(it) && !it.bs) startTimer(S.rest);
+    if (on && !isCardio(it) && !it.bs) startTimer(S.rest, nextAfter(w, d.set, +d.i));
     return;
   }
   if (d.rest) { S.rest = +d.rest; save(); startTimer(S.rest); return; }
+  if (d.alert) {
+    const k = d.alert, on = !S.alerts[k];
+    if (k === "notify" && on && !(await Alerts.askNotify())) { openMenu(); return; }
+    S.alerts[k] = on; save();
+    if (k === "wake") on ? Alerts.keepAwake() : Alerts.release();
+    openMenu(); return;
+  }
   if (d.media !== undefined && t.hasAttribute("data-media")) { t.classList.toggle("paused"); return; }
   if (d.theme) { S.theme = d.theme; save(); applyTheme(); openMenu(); return; }
   const u = d.u, items = w.items, idx = items.findIndex(x => x.u === u);
@@ -498,6 +573,7 @@ document.addEventListener("click", async ev => {
     case "calNext": calMonth.setMonth(calMonth.getMonth() + 1); openHist(); break;
     case "shareLink": shareText("Treino", "Meu treino:", baseUrl() + "?p=" + d.p); break;
     case "export": exportData(); break;
+    case "testAlert": closeSheet(); startTimer(5, "teste do aviso"); toast("Aviso em 5 segundos — pode trocar de app para testar"); break;
     case "syncNew": if (S.sync.code) { openMenu(); break; } t.disabled = true; S.sync.code = newCode(); save(); PEOPLE.forEach(p => Sync.pending.add(p)); await Sync.push(); Sync.start(); openMenu(); render(); break;
     case "syncJoin": {
       const c = ($("#syncCode").value || "").trim(); if (c.length < 16) { alert("Código inválido."); break; }
@@ -524,7 +600,9 @@ document.addEventListener("change", ev => {
   else if (f === "v") { const id = parseYouTube(t.value); if (id === null) { alert("Não reconheci esse link do YouTube."); return; } id ? it.v = id : delete it.v; }
   touch(S.who);
 });
-document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { Sync.pull(); render(); } });
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") { Sync.pull(); render(); tick(); if (tEnd && Date.now() >= tEnd) restDone(); Alerts.keepAwake(); }
+});
 matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", applyTheme);
 
 // "GIF": alterna entre posição inicial e final

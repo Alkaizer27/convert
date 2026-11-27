@@ -1,6 +1,6 @@
 // Guarda o app no celular para abrir mesmo sem internet.
 // Ao publicar mudanças, aumente a versão para os celulares baixarem de novo.
-const CACHE = "treino-v9";
+const CACHE = "treino-v10";
 const CORE = ["./", "./index.html", "./app.js", "./data.js", "./config.js", "./manifest.webmanifest",
   "./icon-192.png", "./icon-512.png", "./icon-maskable-512.png", "./apple-touch-icon.png"];
 const IMAGES = [
@@ -192,4 +192,13 @@ self.addEventListener("fetch", e => {
   // Páginas e código: rede primeiro (pega atualizações); sem internet, usa a cópia guardada.
   e.respondWith(fetch(e.request).then(r => { const c = r.clone(); caches.open(CACHE).then(x => x.put(e.request, c)); return r; })
     .catch(() => caches.match(e.request, { ignoreSearch: true }).then(r => r || caches.match("./index.html"))));
+});
+
+// Toque na notificação do descanso: volta para o app.
+self.addEventListener("notificationclick", e => {
+  e.notification.close();
+  e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(cs => {
+    const c = cs.find(x => "focus" in x);
+    return c ? c.focus() : self.clients.openWindow("./");
+  }));
 });
