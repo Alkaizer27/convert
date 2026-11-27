@@ -621,6 +621,14 @@ setInterval(() => { frame ^= 1; document.querySelectorAll(".media[data-media]:no
   if (inv && window.SYNC_CONFIG && inv !== S.sync.code && confirm("Ligar a sincronização com o outro celular?")) {
     S.sync.code = inv; save(); Sync.pull().then(() => { Sync.start(); render(); toast("Sincronização ligada"); });
   }
-  if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(() => {});
+  if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+    // Quando sai uma versão nova do app, recarrega sozinho uma vez.
+    const hadController = !!navigator.serviceWorker.controller; let reloaded = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => { if (hadController && !reloaded) { reloaded = true; location.reload(); } });
+    navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then(r => {
+      r.update().catch(() => {});
+      document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") r.update().catch(() => {}); });
+    }).catch(() => {});
+  }
   try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
 })();

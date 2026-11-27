@@ -1,6 +1,6 @@
 // Guarda o app no celular para abrir mesmo sem internet.
 // Ao publicar mudanças, aumente a versão para os celulares baixarem de novo.
-const CACHE = "treino-v10";
+const CACHE = "treino-v11";
 const CORE = ["./", "./index.html", "./app.js", "./data.js", "./config.js", "./manifest.webmanifest",
   "./icon-192.png", "./icon-512.png", "./icon-maskable-512.png", "./apple-touch-icon.png"];
 const IMAGES = [
@@ -173,7 +173,7 @@ const IMAGES = [
 ];
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(async c => {
-    await c.addAll(CORE);
+    await c.addAll(CORE.map(u => new Request(u, { cache: "reload" })));
     await Promise.allSettled(IMAGES.map(f => c.add("./img/" + f)));
   }));
   self.skipWaiting();
@@ -190,7 +190,7 @@ self.addEventListener("fetch", e => {
     return;
   }
   // Páginas e código: rede primeiro (pega atualizações); sem internet, usa a cópia guardada.
-  e.respondWith(fetch(e.request).then(r => { const c = r.clone(); caches.open(CACHE).then(x => x.put(e.request, c)); return r; })
+  e.respondWith(fetch(e.request, { cache: "no-cache" }).then(r => { const c = r.clone(); caches.open(CACHE).then(x => x.put(e.request, c)); return r; })
     .catch(() => caches.match(e.request, { ignoreSearch: true }).then(r => r || caches.match("./index.html"))));
 });
 
